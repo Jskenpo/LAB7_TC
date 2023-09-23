@@ -1,78 +1,135 @@
 import re
 
-EPSILON = "EPSILON" 
 
-def validar_gramatica(archivo):
-  """Valida formato de cada línea en el archivo de gramática"""
-  
-  with open(archivo) as f:
-    lineas_validas = []
-    for linea in f:
-      if re.match(r"^[A-Z] -> [A-Z]+$", linea):
-        lineas_validas.append(linea)
-      else:
-        print(f"Línea inválida: {linea}")
-        return False
+# Función para validar que una línea de producción esté bien escrita
+def validate_production(production):
+    production_regex = r'([A-Z]) → (([A-Z]|[a-z]|[0-9]|\||\s|ε)*)'
+    if re.match(production_regex, production):
+      return True
+    else:
+      return False
 
-  return lineas_validas
 
-def encontrar_anulables(gramatica):
-  """Encuentra símbolos anulables en la gramática"""
-  
-  anulables = []
-  
-  for produccion in gramatica:
-    if produccion.endswith(EPSILON +"\n"):
-      anulables.append(produccion.split("->")[0])
+# Clase para representar una gramática
+class Grammar:
 
-  return anulables
+    def __init__(self):
+        self.productions = []
+        self.non_terminals = []
 
-def generar_nuevos_casos(simbolos, anulables):
-  """Genera nuevas producciones reemplazando símbolos anulables"""
+        # Método para agregar una producción
+    def add_production(self, production):
+        if validate_production(production):
+            self.productions.append(production)
+            left_symbol = production.split(' → ')[0]
+            if left_symbol not in self.non_terminals:
+                self.non_terminals.append(left_symbol)
+        else:
+            print("Producción inválida")
 
-  nuevas_prods = []
+    # Método para eliminar producciones epsilon
+    def remove_epsilon_productions(self):
 
-  parte_izq = simbolos.split("->")[0]
-  parte_der = simbolos.split("->")[1].split()
+        # Encontrar símbolos y producciones anulables
+        nullable_symbols = []
+        nullable_productions = []
 
-  for anulable in anulables:
-    if anulable in parte_der:
-      indice = parte_der.index(anulable)
-      for i in range(len(parte_der) - indice):
-        # Generar todas las sublistas a partir del índice
-        sublista = parte_der[indice+i:] 
-        nueva_prod = parte_izq + "->" + " ".join(sublista)
-        nuevas_prods.append(nueva_prod)
+        for production in self.productions:
+            if production.endswith('ε'):
+                nullable_symbols.append(production[0])
+                nullable_productions.append(production)
 
-  return nuevas_prods
-  
-def remover_epsilon(gramatica):
-  """Elimina producciones epsilon y genera nuevos casos"""
+        # Reformular producciones
+        new_productions = set()
 
-  sin_epsilon = []
-  anulables = encontrar_anulables(gramatica)
-  
-  for produccion in gramatica:
-    if not produccion.endswith(EPSILON + "\n"):
-      sin_epsilon.append(produccion)
+        for production in self.productions:
 
-  for i, prod in enumerate(sin_epsilon):
-    if any(s in prod for s in anulables):
-      simbolos = prod.split("->")[1]
-      nuevas = generar_nuevos_casos(simbolos, anulables)  
-      sin_epsilon.extend(nuevas)
-      sin_epsilon.pop(i)
+            if production.endswith('ε'):
 
-  return sin_epsilon
+                # Dividir producción
+                left, body = production.split(' → ')
 
-def main():
-  
-  gram = validar_gramatica("gramatica1.txt")
-  
-  if gram:
-    sin_ep = remover_epsilon(gram)
-    print(sin_ep)
-  else:
-    print("Gramática inválida")
-    
-main()
+                # Reemplazar símbolos anulables
+                body_modified = False
+                for symbol in nullable_symbols:
+                    if symbol in body:
+                        body = body.replace(symbol, '')
+                        body_modified = True
+
+                # Reconstruir y agregar solo si hubo cambios
+                if body_modified:
+                    new_production = left + ' → ' + body
+                    new_productions.add(new_production)
+
+            else:
+
+                # Agregar directamente producciones sin epsilon
+                new_productions.add(production)
+
+        # Actualizar producciones
+        self.productions = []
+        for production in new_productions:
+            self.productions.append(production)
+    def remove_unary_productions(self):
+
+        unary_productions = []
+
+        for production in self.productions:
+            if production.count('-') == 1:
+                unary_productions.append(production)
+
+        for production in unary_productions:
+            self.productions.remove(production)
+
+    # Eliminar símbolos inútiles
+    def remove_useless_symbols(self):
+
+        # Encontrar símbolos no terminales inalcanzables
+        unreachable_symbols = set(self.non_terminals)
+
+        for production in self.productions:
+            left = production.split(' → ')[0]
+            unreachable_symbols.discard(left)
+
+        # Eliminar producciones con símbolos inalcanzables
+        to_remove = []
+        for production in self.productions:
+            left = production.split(' → ')[0]
+            if left in unreachable_symbols:
+                to_remove.append(production)
+
+        for production in to_remove:
+            self.productions.remove(production)
+
+            # Eliminar símbolos que no producen
+        no_production_symbols = []
+        for symbol in self.non_terminals:
+            is_productive = False
+            for production in self.productions:
+                left, _ = production.split(' → ')
+                if left == symbol:
+                    is_productive = True
+                    break
+            if not is_productive:
+                no_production_symbols.append(symbol)
+
+        for symbol in no_production_symbols:
+            self.non_terminals.remove(symbol)
+
+
+# Ejemplo de uso
+grammar = Grammar()
+grammar.add_production("S → 0A0 | 1B1 | BB")
+grammar.add_production("A → C")
+grammar.add_production("B → S | A")
+grammar.add_production("C → S | ε")
+
+print("Gramática original:")
+print(grammar.productions)
+
+grammar.remove_epsilon_productions()
+grammar.remove_unary_productions()
+grammar.remove_useless_symbols()
+
+print("Gramática sin producciones epsilon, operaciones unarias y sin simbolos inutiles:")
+print(grammar.productions)
