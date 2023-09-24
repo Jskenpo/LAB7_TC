@@ -16,6 +16,7 @@ class Grammar:
     def __init__(self):
         self.productions = []
         self.non_terminals = []
+        self.start_symbol = None
 
         # Método para agregar una producción
     def add_production(self, production):
@@ -24,6 +25,8 @@ class Grammar:
             left_symbol = production.split(' → ')[0]
             if left_symbol not in self.non_terminals:
                 self.non_terminals.append(left_symbol)
+            if self.start_symbol is None:
+                self.start_symbol = production.split(' → ')[0]
         else:
             print("Producción inválida")
 
@@ -84,49 +87,66 @@ class Grammar:
     # Eliminar símbolos inútiles
     def remove_useless_symbols(self):
 
-        # Encontrar símbolos no terminales inalcanzables
-        unreachable_symbols = set(self.non_terminals)
+        if self.start_symbol is None:
+            print("No se ha definido símbolo inicial")
+            return
 
-        for production in self.productions:
-            left = production.split(' → ')[0]
-            unreachable_symbols.discard(left)
 
-        # Eliminar producciones con símbolos inalcanzables
+        # Inicializar símbolos alcanzables con el inicial
+        reachable_symbols = [self.start_symbol]
+        added = False
+
+        print (reachable_symbols)
+        # Iterar hasta que no se agreguen nuevos
+        while True:
+
+            for production in self.productions:
+                left, right = production.split(' → ')
+                print('para la produccion: ' + production + ', el left es: ' + left + ', el right es: ' + right + ', el reachable es ' + str(reachable_symbols) + 'y el added es ' + str(added) + '\n')
+
+                if left in reachable_symbols:
+                    right_symbols = right.split()
+                    for symbol in right_symbols:
+                        if symbol in self.non_terminals and symbol not in reachable_symbols:
+                            reachable_symbols.append(symbol)
+                            added = True
+            if not added:
+                break
+
+        useless_symbols = []
+
+        for symbol in self.non_terminals:
+            if symbol not in reachable_symbols:
+                useless_symbols.append(symbol)
+
+        #símbolos inútiles
+        print('simbolos inutiles: ' + str(useless_symbols) + '\n')
+
         to_remove = []
         for production in self.productions:
             left = production.split(' → ')[0]
-            if left in unreachable_symbols:
-                to_remove.append(production)
+            if left in useless_symbols:
+                to_remove.append(production)  
+        
+        #producciones a eliminar 
+        print('producciones a eliminar: ' + str(to_remove) + '\n')
 
         for production in to_remove:
             self.productions.remove(production)
 
-            # Eliminar símbolos que no producen
-        no_production_symbols = []
-        for symbol in self.non_terminals:
-            is_productive = False
-            for production in self.productions:
-                left, _ = production.split(' → ')
-                if left == symbol:
-                    is_productive = True
-                    break
-            if not is_productive:
-                no_production_symbols.append(symbol)
-
-        for symbol in no_production_symbols:
-            self.non_terminals.remove(symbol)
-
+        
+        
 
 # Ejemplo de uso
 grammar = Grammar()
-grammar.add_production("S → 0A0 | 1B1 | BB")
-grammar.add_production("A → C")
-grammar.add_production("B → S | A")
-grammar.add_production("C → S | ε")
 
-print("Gramática original:")
-print(grammar.productions)
+grammar.add_production("S → ABD")
+grammar.add_production("A → a")
+grammar.add_production("B → b")
+grammar.add_production("D → d")
+grammar.add_production("B → ε")
 
+# Símbolo inicial ya definido
 grammar.remove_epsilon_productions()
 grammar.remove_unary_productions()
 grammar.remove_useless_symbols()

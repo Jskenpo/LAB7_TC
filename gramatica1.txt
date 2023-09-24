@@ -1,6 +1,0 @@
-S -> AAB | BB | EPSILON
-A -> CCD | EPSILON
-B -> E | A
-C -> a
-D -> b
-E -> c
